@@ -34,6 +34,7 @@ import com.mongodb.async.AsyncBatchCursor;
 import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.FindIterable;
 import com.mongodb.async.client.MongoCollection;
+import com.mongodb.client.model.CountOptions;
 import com.mongodb.client.model.InsertManyOptions;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.result.DeleteResult;
@@ -228,6 +229,20 @@ public class CollectionPromises<T> {
         return m;
     }
 
+    public CountBuilder count() {
+        return new CountBuilderImpl(this);
+    }
+
+    public AsyncPromise<Bson, Long> count(CountOptions opts) {
+        return AsyncPromise.create(new SimpleLogic<Bson, Long>() {
+
+            @Override
+            public void run(Bson data, Trigger<Long> next) throws Exception {
+                collection.count(data, new SRC<>(next));
+            }
+        });
+    }
+
     AsyncPromise<Bson, List<T>> find(final FindBuilderImpl<T> builder, final FindReceiver<List<T>> withResults) {
         AsyncPromise<Bson, AsyncBatchCursor<T>> m = AsyncPromise.create(new Logic<Bson, AsyncBatchCursor<T>>() {
             @Override
@@ -256,7 +271,7 @@ public class CollectionPromises<T> {
                             }
                         }
                         if (cont.get()) {
-                            cursor.next(new SRC<List<T>>(next));
+                            cursor.next(new SRC<List<T>>(this));
                         } else {
                             cursor.close();
                             next.trigger(obj, thrown);
@@ -282,7 +297,7 @@ public class CollectionPromises<T> {
     public FindBuilder<T> find() {
         return findImpl();
     }
-
+    
     private static class SRC<T> implements SingleResultCallback<T> {
 
         private final Trigger<T> trigger;
