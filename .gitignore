@@ -1,0 +1,14 @@
+*.class
+nbactions.xml
+nb-configuration.xml
+
+# Package Files #
+*.jar
+*.war
+*.ear
+*.orig
+*.iml
+.idea/*
+target/
+nbproject/project.properties
+
