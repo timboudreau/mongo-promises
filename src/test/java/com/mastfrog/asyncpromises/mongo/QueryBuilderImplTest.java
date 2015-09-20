@@ -31,6 +31,9 @@ import static org.junit.Assert.assertNotNull;
 import org.junit.Test;
 
 /**
+ * Additional tests are in the adjacent mongo-promises-tests project since
+ * they would otherwise create a circular dependency on giulius-async-mongodb's
+ * MongoHarness.
  *
  * @author Tim Boudreau
  */

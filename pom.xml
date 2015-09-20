@@ -3,30 +3,12 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.mastfrog</groupId>
-        <artifactId>giulius-parent</artifactId>
+        <artifactId>mastfrog-parent</artifactId>
         <version>1.6.3</version>
         <relativePath/>
     </parent>
     <artifactId>mongo-promises</artifactId>
     <packaging>jar</packaging>
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.3</version>
-                <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
-    </properties>
     <dependencies>
         <dependency>
             <groupId>org.mongodb</groupId>
@@ -37,25 +19,6 @@
             <artifactId>async-promises</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>giulius-mongodb-async</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>giulius-mongodb-async</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>        
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>giulius-tests</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>        
     </dependencies>
     <repositories>
         <repository>
