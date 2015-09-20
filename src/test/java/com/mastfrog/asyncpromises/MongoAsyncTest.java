@@ -21,7 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
 package com.mastfrog.asyncpromises;
 
 import com.google.inject.Binder;
@@ -39,6 +38,8 @@ import com.mastfrog.giulius.tests.TestWith;
 import com.mastfrog.util.Exceptions;
 import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoCollection;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -48,6 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,18 +67,17 @@ public class MongoAsyncTest {
         CollectionPromises<Document> p = new CollectionPromises<>(coll);
         final List<Document> all = new LinkedList<>();
         final AtomicBoolean nextWasRun = new AtomicBoolean();
-        AsyncPromise<Bson, Long> promise = p.find().descendingSortBy("ix").withBatchSize(20).find(new FindReceiver<List<Document>>(){
-            
+        AsyncPromise<Bson, Long> promise = p.find().descendingSortBy("ix").withBatchSize(20).find(new FindReceiver<List<Document>>() {
+
             int total = 0;
-            
+
             @Override
             public void withResults(List<Document> obj, Trigger<Boolean> trigger, PromiseContext context) throws Exception {
                 total += obj.size();
-                System.out.println("GET ONE BATCH " + obj.size() + " TOTAL " + total);
                 all.addAll(obj);
                 trigger.trigger(true, null);
             }
-        }).then(new SimpleLogic<Void,Void>(){
+        }).then(new SimpleLogic<Void, Void>() {
 
             @Override
             public void run(Void data, Trigger<Void> next) throws Exception {
@@ -86,7 +87,7 @@ public class MongoAsyncTest {
         }).then(new Document(), p.count().maxTime(10, TimeUnit.SECONDS).count());
         final CountDownLatch waitForAllResults = new CountDownLatch(1);
         final AtomicLong countHolder = new AtomicLong();
-        promise.start(new Document(), new Trigger<Long>(){
+        promise.start(new Document(), new Trigger<Long>() {
 
             @Override
             public void trigger(Long count, Throwable thrown) {
@@ -98,8 +99,42 @@ public class MongoAsyncTest {
         assertTrue(nextWasRun.get());
         assertEquals(200, all.size());
         assertEquals(200L, countHolder.get());
+        final List<Document> specific = new ArrayList<>();
+        final CountDownLatch afterQuery = new CountDownLatch(1);
+        p.query().in("ix", 1, 5, 10, 20).build()
+                .descendingSortBy("ix")
+                .limit(20).withBatchSize(10).find(new FindReceiver<List<Document>>() {
+
+            @Override
+            public void withResults(List<Document> obj, Trigger<Boolean> trigger, PromiseContext context) throws Exception {
+                specific.addAll(obj);
+                afterQuery.countDown();
+            }
+        }).start();
+        afterQuery.await(10, TimeUnit.SECONDS);
+        assertFalse(specific.isEmpty());
+        List<Integer> expect = new ArrayList<>(Arrays.<Integer>asList(1, 5, 10, 20));
+        for (Document d : specific) {
+            Integer ix = (Integer) d.get("ix");
+            expect.remove(ix);
+        }
+        assertTrue("Did not find " + expect, expect.isEmpty());
+
+        final CountDownLatch countWait = new CountDownLatch(1);
+        final AtomicLong subcount = new AtomicLong();
+        p.countWithQuery().greaterThan("ix", 100).build().skip(4).count().then(new Logic<Long, Void>() {
+
+            @Override
+            public void run(Long data, Trigger<Void> next, PromiseContext context) throws Exception {
+                subcount.set(data);
+                countWait.countDown();
+                next.trigger(null, null);
+            }
+        }).start();
+        countWait.await(10, TimeUnit.SECONDS);
+        assertEquals(95L, subcount.get());
     }
-    
+
     static final class M implements Module {
 
         @Override
@@ -108,8 +143,7 @@ public class MongoAsyncTest {
                     .bindCollection("stuff").withInitializer(Ini.class);
             binder.install(m);
         }
-        
-        
+
         static class Ini extends MongoAsyncInitializer {
 
             @Inject
@@ -126,7 +160,7 @@ public class MongoAsyncTest {
                     all.add(d);
                 }
                 final CountDownLatch latch = new CountDownLatch(1);
-                collection.withDocumentClass(Document.class).insertMany(all, new SingleResultCallback<Void>(){
+                collection.withDocumentClass(Document.class).insertMany(all, new SingleResultCallback<Void>() {
 
                     @Override
                     public void onResult(Void t, Throwable thrwbl) {

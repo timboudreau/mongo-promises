@@ -54,13 +54,22 @@ public class CollectionPromises<T> {
     /**
      * Create a wrapper.
      *
-     * @param coll The collection
+     * @param collection The collection
      */
-    public CollectionPromises(MongoCollection<T> coll) {
-        if (coll == null) {
+    public CollectionPromises(MongoCollection<T> collection) {
+        if (collection == null) {
             throw new IllegalArgumentException("Collection null");
         }
-        this.collection = coll;
+        this.collection = collection;
+    }
+
+    /**
+     * Get the underlying collection.
+     *
+     * @return The collection
+     */
+    public MongoCollection<T> collection() {
+        return collection;
     }
 
     /**
@@ -207,6 +216,16 @@ public class CollectionPromises<T> {
         });
         return m;
     }
+    
+    /**
+     * Perform a find() or findOne() using a query builder to assemble the query
+     * first.
+     * 
+     * @return 
+     */
+    public QueryBuilder<T,FindBuilder<T,Void>> query() {
+        return QueryBuilderImpl.create(this);
+    }
 
     /**
      * Get a builder to configure and execute an update of one or many
@@ -218,7 +237,7 @@ public class CollectionPromises<T> {
         return new UpdateBuilderImpl<>(this);
     }
 
-    AsyncPromise<Bson, T> findOne(final FindBuilderImpl<T> builder) {
+    AsyncPromise<Bson, T> findOne(final FindBuilderImpl<T,?> builder) {
         AsyncPromise<Bson, T> m = AsyncPromise.create(new SimpleLogic<Bson, T>() {
             @Override
             public void run(Bson data, Trigger<T> next) throws Exception {
@@ -229,21 +248,43 @@ public class CollectionPromises<T> {
         return m;
     }
 
-    public CountBuilder count() {
-        return new CountBuilderImpl(this);
+    /**
+     * Count documents, supplying your own Bson to the promise.
+     * 
+     * @return A CountBuilder
+     */
+    public CountBuilder<Bson> count() {
+        return CountBuilderImpl.create(this);
+    }
+    
+    /**
+     * Count documents, using a QueryBuilder to build the query to match
+     * against.
+     * 
+     * @return A query builder
+     */
+    public QueryBuilder<T,CountBuilder<Void>> countWithQuery() {
+        QueryBuilderImpl<T, CountBuilder<Void>> x = QueryBuilderImpl.createForCount(this);
+        return x;
     }
 
-    public AsyncPromise<Bson, Long> count(CountOptions opts) {
+    /**
+     * Count documents, supplying your own Bson to the promise and using
+     * the passed count options.
+     * @param opts The count options
+     * @return A promise
+     */
+    public AsyncPromise<Bson, Long> count(final CountOptions opts) {
         return AsyncPromise.create(new SimpleLogic<Bson, Long>() {
 
             @Override
             public void run(Bson data, Trigger<Long> next) throws Exception {
-                collection.count(data, new SRC<>(next));
+                collection.count(data, opts, new SRC<>(next));
             }
         });
     }
 
-    AsyncPromise<Bson, List<T>> find(final FindBuilderImpl<T> builder, final FindReceiver<List<T>> withResults) {
+    AsyncPromise<Bson, List<T>> find(final FindBuilderImpl<T,?> builder, final FindReceiver<List<T>> withResults) {
         AsyncPromise<Bson, AsyncBatchCursor<T>> m = AsyncPromise.create(new Logic<Bson, AsyncBatchCursor<T>>() {
             @Override
             public void run(Bson data, Trigger<AsyncBatchCursor<T>> next, PromiseContext context) throws Exception {
@@ -283,8 +324,8 @@ public class CollectionPromises<T> {
         return m.then(cursorPromise);
     }
 
-    FindBuilderImpl<T> findImpl() {
-        return new FindBuilderImpl<T>(this);
+    FindBuilderImpl<T,Bson> findImpl() {
+        return FindBuilderImpl.create(this);
     }
 
     /**
@@ -294,10 +335,10 @@ public class CollectionPromises<T> {
      *
      * @return A find builder
      */
-    public FindBuilder<T> find() {
+    public FindBuilder<T,Bson> find() {
         return findImpl();
     }
-    
+
     private static class SRC<T> implements SingleResultCallback<T> {
 
         private final Trigger<T> trigger;

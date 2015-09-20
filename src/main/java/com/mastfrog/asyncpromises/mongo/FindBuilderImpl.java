@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
 package com.mastfrog.asyncpromises.mongo;
 
 import com.mastfrog.asyncpromises.AsyncPromise;
 import com.mastfrog.asyncpromises.Logic;
 import com.mastfrog.asyncpromises.PromiseContext;
+import com.mastfrog.asyncpromises.PromiseContext.Key;
 import com.mastfrog.asyncpromises.Trigger;
 import com.mongodb.CursorType;
 import com.mongodb.async.client.FindIterable;
@@ -39,7 +39,8 @@ import org.bson.conversions.Bson;
  *
  * @author Tim Boudreau
  */
-final class FindBuilderImpl<T> implements FindBuilder<T> {
+final class FindBuilderImpl<T, I> implements FindBuilder<T, I> {
+
     private int batchSize;
     private Bson projection;
     private CursorType cursorType;
@@ -49,15 +50,114 @@ final class FindBuilderImpl<T> implements FindBuilder<T> {
     private Bson sort;
     private long maxTime = 0;
     private TimeUnit unit;
-    private final CollectionPromises<T> promises;
+    private final Factory<T, I> factory;
 
-    public FindBuilderImpl(CollectionPromises<T> promises) {
-        this.promises = promises;
+    public static final Key<Bson> QUERY_KEY = PromiseContext.newKey(Bson.class);
+
+    FindBuilderImpl(Factory<T, I> promises) {
+        this.factory = promises;
+    }
+
+    static <T> FindBuilderImpl<T, Bson> create(CollectionPromises<T> promises) {
+        checkNull("promises", promises);
+        return new FindBuilderImpl<>(new StandardFactory<>(promises));
+    }
+
+    static <T> FindBuilderImpl<T, Void> create(CollectionPromises<T> promises, Bson query) {
+        checkNull("promises", promises);
+        checkNull("query", query);
+        return new FindBuilderImpl<>(new VoidFactory<T>(promises, query));
+    }
+
+    static class VoidFactory<T> implements Factory<T, Void> {
+
+        private final Factory<T, Bson> standard;
+        private final Bson query;
+
+        public VoidFactory(CollectionPromises<T> promises, Bson query) {
+            this(new StandardFactory<>(promises), query);
+        }
+
+        public VoidFactory(Factory<T, Bson> standard, Bson query) {
+            this.standard = standard;
+            this.query = query;
+        }
+
+        @Override
+        public AsyncPromise<Void, T> findOne(FindBuilderImpl<T, ?> builder) {
+            return AsyncPromise.create(new Logic<Void, Bson>() {
+
+                @Override
+                public void run(Void data, Trigger<Bson> next, PromiseContext context) throws Exception {
+                    context.put(QUERY_KEY, query);
+                    next.trigger(query, null);
+                }
+            }).then(standard.findOne(builder));
+        }
+
+        @Override
+        public <R> Factory<R, Void> withType(Class<R> type) {
+            return new VoidFactory<R>(standard.withType(type), query);
+        }
+
+        @Override
+        public AsyncPromise<Void, Void> find(FindBuilderImpl<T, ?> builder, FindReceiver<List<T>> logic) {
+            return AsyncPromise.create(new Logic<Void, Bson>() {
+
+                @Override
+                public void run(Void data, Trigger<Bson> next, PromiseContext context) throws Exception {
+                    context.put(QUERY_KEY, query);
+                    next.trigger(query, null);
+                }
+            }).then(standard.find(builder, logic));
+        }
+
+    }
+
+    static class StandardFactory<T> implements Factory<T, Bson> {
+
+        private final CollectionPromises<T> promises;
+
+        public StandardFactory(CollectionPromises<T> promises) {
+            checkNull("promises", promises);
+            this.promises = promises;
+        }
+
+        @Override
+        public AsyncPromise<Bson, Void> find(FindBuilderImpl<T, ?> builder, FindReceiver<List<T>> logic) {
+            checkNull("logic", logic);
+            AsyncPromise<Bson, List<T>> result = promises.find(builder, logic);
+            return result.then(new Logic<List<T>, Void>() {
+                @Override
+                public void run(List<T> data, Trigger<Void> next, PromiseContext context) throws Exception {
+                    next.trigger(null, null);
+                }
+            });
+        }
+
+        @Override
+        public AsyncPromise<Bson, T> findOne(FindBuilderImpl<T, ?> builder) {
+            return promises.findOne(builder);
+        }
+
+        @Override
+        public <R> Factory<R, Bson> withType(Class<R> type) {
+            return new StandardFactory<>(promises.withType(type));
+        }
+    }
+
+    interface Factory<T, I> {
+
+        AsyncPromise<I, Void> find(FindBuilderImpl<T, ?> builder, FindReceiver<List<T>> logic);
+
+        AsyncPromise<I, T> findOne(FindBuilderImpl<T, ?> builder);
+
+        <R> Factory<R, I> withType(Class<R> type);
     }
 
     @Override
-    public <R> FindBuilder<R> withResultType(Class<R> type) {
-        FindBuilderImpl<R> result = promises.withType(type).findImpl();
+    public <R> FindBuilder<R, I> withResultType(Class<R> type) {
+        FindBuilderImpl<R, I> result = new FindBuilderImpl<>(factory.withType(type));
         result.batchSize = batchSize;
         result.projection = projection;
         result.cursorType = cursorType;
@@ -99,7 +199,7 @@ final class FindBuilderImpl<T> implements FindBuilder<T> {
     }
 
     @Override
-    public FindBuilder<T> withBatchSize(int size) {
+    public FindBuilder<T, I> withBatchSize(int size) {
         if (size <= 0) {
             throw new IllegalArgumentException("Batch size must be at least one: " + size);
         }
@@ -108,19 +208,19 @@ final class FindBuilderImpl<T> implements FindBuilder<T> {
     }
 
     @Override
-    public FindBuilder<T> withProjection(Bson projection) {
+    public FindBuilder<T, I> withProjection(Bson projection) {
         this.projection = projection;
         return this;
     }
 
     @Override
-    public FindBuilder<T> withCursorType(CursorType cursorType) {
+    public FindBuilder<T, I> withCursorType(CursorType cursorType) {
         this.cursorType = cursorType;
         return this;
     }
 
     @Override
-    public FindBuilder<T> limit(int amount) {
+    public FindBuilder<T, I> limit(int amount) {
         if (amount <= 0) {
             throw new IllegalArgumentException("Limit must be at least one: " + amount);
         }
@@ -128,47 +228,47 @@ final class FindBuilderImpl<T> implements FindBuilder<T> {
         return this;
     }
 
-    private void checkNull(String name, Object o) {
+    static void checkNull(String name, Object o) {
         if (o == null) {
             throw new IllegalArgumentException(name + " is null");
         }
     }
 
     @Override
-    public FindBuilder<T> filter(Bson bson) {
+    public FindBuilder<T, I> filter(Bson bson) {
         checkNull("filter", bson);
         this.filter = bson;
         return this;
     }
 
     @Override
-    public FindBuilder<T> modifiers(Bson bson) {
+    public FindBuilder<T, I> modifiers(Bson bson) {
         checkNull("modifiers", bson);
         this.modifiers = bson;
         return this;
     }
 
     @Override
-    public FindBuilder<T> sort(Bson bson) {
+    public FindBuilder<T, I> sort(Bson bson) {
         checkNull("sort", bson);
         this.sort = bson;
         return this;
     }
 
     @Override
-    public FindBuilder<T> ascendingSortBy(String name) {
+    public FindBuilder<T, I> ascendingSortBy(String name) {
         checkNull("name", name);
         return sort(new Document(name, 1));
     }
 
     @Override
-    public FindBuilder<T> descendingSortBy(String name) {
+    public FindBuilder<T, I> descendingSortBy(String name) {
         checkNull("name", name);
         return sort(new Document(name, -1));
     }
 
     @Override
-    public FindBuilder<T> maxTime(long amount, TimeUnit units) {
+    public FindBuilder<T, I> maxTime(long amount, TimeUnit units) {
         if (amount < 0) {
             throw new IllegalArgumentException("Amount must be > 0");
         }
@@ -179,20 +279,13 @@ final class FindBuilderImpl<T> implements FindBuilder<T> {
     }
 
     @Override
-    public AsyncPromise<Bson, Void> find(FindReceiver<List<T>> logic) {
+    public AsyncPromise<I, Void> find(FindReceiver<List<T>> logic) {
         checkNull("logic", logic);
-        AsyncPromise<Bson, List<T>> result = promises.find(this, logic);
-        return result.then(new Logic<List<T>, Void>() {
-            @Override
-            public void run(List<T> data, Trigger<Void> next, PromiseContext context) throws Exception {
-                next.trigger(null, null);
-            }
-        });
+        return factory.find(this, logic);
     }
 
     @Override
-    public AsyncPromise<Bson, T> findOne() {
-        return promises.findOne(this);
+    public AsyncPromise<I, T> findOne() {
+        return factory.findOne(this);
     }
-
 }

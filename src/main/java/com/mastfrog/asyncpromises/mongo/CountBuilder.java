@@ -29,21 +29,22 @@ import java.util.concurrent.TimeUnit;
 import org.bson.conversions.Bson;
 
 /**
+ * Builder for counting matches.
  *
  * @author Tim Boudreau
  */
-public interface CountBuilder {
+public interface CountBuilder<I> {
 
-    public CountBuilder hint(Bson hint);
+    public CountBuilder<I> hint(Bson hint);
 
-    public CountBuilder hintString(String hint);
+    public CountBuilder<I> hintString(String hint);
 
-    public CountBuilder limit(int limit);
+    public CountBuilder<I> limit(int limit);
 
-    public CountBuilder skip(int skip);
+    public CountBuilder<I> skip(int skip);
 
-    public CountBuilder maxTime(long maxTime, TimeUnit timeUnit);
-    
-    public AsyncPromise<Bson,Long> count();
+    public CountBuilder<I> maxTime(long maxTime, TimeUnit timeUnit);
+
+    public AsyncPromise<I, Long> count();
 
 }
