@@ -38,18 +38,23 @@ import com.mastfrog.giulius.tests.TestWith;
 import com.mastfrog.util.Exceptions;
 import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoCollection;
+import com.mongodb.client.result.UpdateResult;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.junit.Assert;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -110,8 +115,9 @@ public class MongoAsyncTest {
                 specific.addAll(obj);
                 afterQuery.countDown();
             }
-        }).start();
+        }).onFailure(fh).start();
         afterQuery.await(10, TimeUnit.SECONDS);
+        fh.assertNotThrown();
         assertFalse(specific.isEmpty());
         List<Integer> expect = new ArrayList<>(Arrays.<Integer>asList(1, 5, 10, 20));
         for (Document d : specific) {
@@ -130,9 +136,88 @@ public class MongoAsyncTest {
                 countWait.countDown();
                 next.trigger(null, null);
             }
-        }).start();
+        }).onFailure(fh).start();
         countWait.await(10, TimeUnit.SECONDS);
+        fh.assertNotThrown();
         assertEquals(95L, subcount.get());
+
+        final Document[] oldAndNew = new Document[2];
+        final CountDownLatch updateLatch = new CountDownLatch(1);
+        p.findOneAndUpdate().equal("ix", 0).build().set("name", "Updated name").build().maxTime(10, TimeUnit.SECONDS)
+                .projection().ignore("_id").build().build().onFailure(fh).then(new SimpleLogic<Document,Void>(){
+
+            @Override
+            public void run(Document data, Trigger<Void> next) throws Exception {
+                oldAndNew[0] = data;
+                next.trigger(null, null);
+            }
+        }).then(null, p.query().equal("ix", 0).build().findOne().then(new Logic<Document,Void>(){
+
+            @Override
+            public void run(Document data, Trigger<Void> next, PromiseContext context) throws Exception {
+                oldAndNew[1] = data;
+                next.trigger(null,null);
+                updateLatch.countDown();
+            }
+        })).start();
+        updateLatch.await(10, TimeUnit.SECONDS);
+        assertNotNull(oldAndNew[1]);
+        assertEquals("Updated name", oldAndNew[1].get("name"));
+        assertNull("Projection not applied", oldAndNew[0].get("_id"));
+        Assert.assertNotEquals(oldAndNew[0], oldAndNew[1]);
+        final UpdateResult[] update = new UpdateResult[1];
+        final CountDownLatch manyLatch = new CountDownLatch(1);
+        p.updateWithQuery().lessThan("ix", 25).build().set("foo", "bar").build().updateMany().onFailure(fh).then(new SimpleLogic<UpdateResult, Void>(){
+
+            @Override
+            public void run(UpdateResult data, Trigger<Void> next) throws Exception {
+                update[0] = data;
+                next.trigger(null, null);
+                manyLatch.countDown();
+            }
+        }).start();
+        
+        manyLatch.await(10, SECONDS);
+        fh.assertNotThrown();
+        assertNotNull(update[0]);
+        assertEquals(25, update[0].getMatchedCount());
+        assertEquals(25, update[0].getModifiedCount());
+        final Document[] modif = new Document[1];
+        final CountDownLatch modifLatch = new CountDownLatch(1);
+        p.query().equal("ix", 0).build().findOne().onFailure(fh).then(new SimpleLogic<Document,Void>(){
+
+            @Override
+            public void run(Document data, Trigger<Void> next) throws Exception {
+                modif[0] = data;
+                next.trigger(null, null);
+                modifLatch.countDown();
+            }
+        }).start();
+        modifLatch.await(10, SECONDS);
+        fh.assertNotThrown();
+        assertNotNull(modif[0]);
+        assertEquals("bar", modif[0].get("foo"));
+    }
+
+    static FH fh = new FH();
+    static class FH implements FailureHandler {
+
+        private Throwable thrown;
+        @Override
+        public <T> boolean onFailure(PromiseContext.Key<T> key, T input, Throwable thrown, PromiseContext context) {
+            this.thrown = thrown;
+            thrown.printStackTrace();
+            return true;
+        }
+
+        void assertNotThrown() {
+            Throwable old = thrown;
+            thrown = null;
+            if (old != null) {
+                Exceptions.chuck(old);
+            }
+        }
+
     }
 
     static final class M implements Module {

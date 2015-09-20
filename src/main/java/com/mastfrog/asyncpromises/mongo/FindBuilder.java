@@ -34,7 +34,7 @@ import org.bson.conversions.Bson;
  *
  * @param <T> The type of the collection's elements
  */
-public interface FindBuilder<T,I> {
+public interface FindBuilder<T, I> {
 
     /**
      * Set the cursor's batch size
@@ -42,7 +42,7 @@ public interface FindBuilder<T,I> {
      * @param size The batch size
      * @return this
      */
-    public FindBuilder<T,I> withBatchSize(int size);
+    public FindBuilder<T, I> withBatchSize(int size);
 
     /**
      * Set the projection for the query
@@ -50,7 +50,7 @@ public interface FindBuilder<T,I> {
      * @param projection The projection
      * @return this
      */
-    public FindBuilder<T,I> withProjection(Bson projection);
+    public FindBuilder<T, I> withProjection(Bson projection);
 
     /**
      * Set the cursor type for the query
@@ -58,7 +58,7 @@ public interface FindBuilder<T,I> {
      * @param cursorType The cursor type
      * @return this
      */
-    public FindBuilder<T,I> withCursorType(CursorType cursorType);
+    public FindBuilder<T, I> withCursorType(CursorType cursorType);
 
     /**
      * Set the limit for the cursor
@@ -66,7 +66,7 @@ public interface FindBuilder<T,I> {
      * @param amount The limit - must be a positive integer
      * @return this
      */
-    public FindBuilder<T,I> limit(int amount);
+    public FindBuilder<T, I> limit(int amount);
 
     /**
      * Set the filter for the query
@@ -74,7 +74,7 @@ public interface FindBuilder<T,I> {
      * @param bson The filter
      * @return this
      */
-    public FindBuilder<T,I> filter(Bson bson);
+    public FindBuilder<T, I> filter(Bson bson);
 
     /**
      * Set the modifiers for performing the query
@@ -82,7 +82,7 @@ public interface FindBuilder<T,I> {
      * @param bson The modifiers
      * @return this
      */
-    public FindBuilder<T,I> modifiers(Bson bson);
+    public FindBuilder<T, I> modifiers(Bson bson);
 
     /**
      * Set the sort for the query
@@ -90,25 +90,25 @@ public interface FindBuilder<T,I> {
      * @param bson The sort parameters
      * @return this
      */
-    public FindBuilder<T,I> sort(Bson bson);
+    public FindBuilder<T, I> sort(Bson bson);
 
     /**
-     * Simplification of <code>sort()</code> for the common case of sorting
-     * on a single property.
+     * Simplification of <code>sort()</code> for the common case of sorting on a
+     * single property.
      *
      * @param name The name of the property
      * @return this
      */
-    public FindBuilder<T,I> ascendingSortBy(String name);
+    public FindBuilder<T, I> ascendingSortBy(String name);
 
     /**
-     * Simplification of <code>sort()</code> for the common case of sorting
-     * on a single property.
+     * Simplification of <code>sort()</code> for the common case of sorting on a
+     * single property.
      *
      * @param name The name of the property
      * @return this
      */
-    public FindBuilder<T,I> descendingSortBy(String name);
+    public FindBuilder<T, I> descendingSortBy(String name);
 
     /**
      * Set the maximum time before the query times out.
@@ -117,7 +117,7 @@ public interface FindBuilder<T,I> {
      * @param units The units of the amount
      * @return this
      */
-    public FindBuilder<T,I> maxTime(long amount, TimeUnit units);
+    public FindBuilder<T, I> maxTime(long amount, TimeUnit units);
 
     /**
      * Create FindBuilder with this one's parameters, which will use an
@@ -127,14 +127,20 @@ public interface FindBuilder<T,I> {
      * @param type The type
      * @return A new FindBuilder with this one's state
      */
-    public <R> FindBuilder<R,I> withResultType(Class<R> type);
+    public <R> FindBuilder<R, I> withResultType(Class<R> type);
 
     /**
-     * Execute the find, notifying the passed FindReceiver once for each
-     * batch of results.
+     * Create the projection using a builder.
      *
-     * @param receiver The callback which will be passed each batch of
-     * results
+     * @return A projection builder whose build method will return this.
+     */
+    public ProjectionBuilder<FindBuilder<T, I>> projection();
+
+    /**
+     * Execute the find, notifying the passed FindReceiver once for each batch
+     * of results.
+     *
+     * @param receiver The callback which will be passed each batch of results
      * @return A promise which will be notified when all results have been
      * received
      */

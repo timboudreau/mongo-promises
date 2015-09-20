@@ -23,6 +23,12 @@
  */
 package com.mastfrog.asyncpromises.mongo;
 
+import com.mastfrog.asyncpromises.AsyncPromise;
+import com.mastfrog.asyncpromises.Logic;
+import com.mastfrog.asyncpromises.PromiseContext;
+import com.mastfrog.asyncpromises.SimpleLogic;
+import com.mastfrog.asyncpromises.Trigger;
+import com.mongodb.client.result.UpdateResult;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -51,7 +57,7 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
     }
 
     static <T> QueryBuilder<T, Document> create() {
-        return new QueryBuilderImpl<T, Document>(new BsonFactory<T>());
+        return new QueryBuilderImpl<>(new BsonFactory<T>());
     }
 
     static <T> QueryBuilderImpl<T, FindBuilder<T, Void>> create(CollectionPromises<T> promises) {
@@ -61,12 +67,95 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
     static <T> QueryBuilderImpl<T, CountBuilder<Void>> createForCount(CollectionPromises<T> promises) {
         return new QueryBuilderImpl<>(new CountFactory<T>(promises));
     }
+    
+    static <T> QueryBuilderImpl<T, ModificationBuilder<FindOneAndUpdateBuilder<T,Void>>> createForFindAndModify(CollectionPromises<T> promises) {
+        return new QueryBuilderImpl<>(new FindAndModifyOneFactory<>(promises));
+    }
+    
+    static <T> QueryBuilder<T, ModificationBuilder<UpdateBuilder<Void>>> createForUpdate(CollectionPromises<T> promises) {
+        return new QueryBuilderImpl<>(new UpdateFactory<>(promises));
+    }
 
     static class BsonFactory<T> implements Factory<T, Document> {
 
         @Override
         public Document create(Document document) {
             return document;
+        }
+    }
+    
+    static class UpdateFactory<T> implements Factory<T, ModificationBuilder<UpdateBuilder<Void>>>  {
+        private final CollectionPromises<T> promises;
+
+        public UpdateFactory(CollectionPromises<T> promises) {
+            this.promises = promises;
+        }
+
+        @Override
+        public ModificationBuilder<UpdateBuilder<Void>> create(final Document query) {
+            return new ModificationBuilderImpl<>(new ModificationBuilderImpl.Factory<UpdateBuilder<Void>>() {
+
+                @Override
+                public UpdateBuilder<Void> build(final Document modification) {
+                    return new UpdateBuilderImpl<>(new UpdateBuilderImpl.Factory<Void>(){
+
+                        @Override
+                        public AsyncPromise<Void, UpdateResult> updateMany(UpdateBuilderImpl<?> builder) {
+                            return AsyncPromise.create(new SimpleLogic<Void, Bson>(){
+
+                                @Override
+                                public void run(Void data, Trigger<Bson> next) throws Exception {
+                                    next.trigger(query, null);
+                                }
+                            }).then(promises.updateMany(modification, builder.opts));
+                        }
+
+                        @Override
+                        public AsyncPromise<Void, UpdateResult> updateOne(UpdateBuilderImpl<?> builder) {
+                            return AsyncPromise.create(new SimpleLogic<Void, Bson>(){
+
+                                @Override
+                                public void run(Void data, Trigger<Bson> next) throws Exception {
+                                    next.trigger(query, null);
+                                }
+                            }).then(promises.updateOne(modification));
+                        }
+                    }).modification(modification);
+                }
+            });
+        }
+        
+    }
+    
+    static class FindAndModifyOneFactory<T> implements Factory<T, ModificationBuilder<FindOneAndUpdateBuilder<T,Void>>> {
+        private final CollectionPromises<T> promises;
+
+        public FindAndModifyOneFactory(CollectionPromises<T> promises) {
+            this.promises = promises;
+        }
+
+        @Override
+        public ModificationBuilder<FindOneAndUpdateBuilder<T, Void>> create(final Document query) {
+            return new ModificationBuilderImpl<>(new ModificationBuilderImpl.Factory<FindOneAndUpdateBuilder<T,Void>>() {
+
+                @Override
+                public FindOneAndUpdateBuilder<T,Void> build(final Document modification) {
+                    FindOneAndUpdateBuilderImpl.Factory<T,Void> factory = new FindOneAndUpdateBuilderImpl.Factory<T,Void>() {
+
+                        @Override
+                        public AsyncPromise<Void, T> build(final FindOneAndUpdateBuilderImpl<T, Void> builder) {
+                            return AsyncPromise.create(new Logic<Void,Bson>(){
+
+                                @Override
+                                public void run(Void data, Trigger<Bson> next, PromiseContext context) throws Exception {
+                                    next.trigger(query, null);
+                                }
+                            }).then(promises.findOneAndUpdate(modification, builder.opts));
+                        }
+                    };
+                    return new FindOneAndUpdateBuilderImpl<T,Void>(factory);
+                }
+            });
         }
     }
 

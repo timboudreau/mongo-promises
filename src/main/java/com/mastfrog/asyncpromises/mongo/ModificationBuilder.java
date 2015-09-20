@@ -36,7 +36,7 @@ public interface ModificationBuilder<T> {
      *
      * @return The Updatebuilder that created this ModificationBuilder.
      */
-    UpdateBuilder<T> build();
+    T build();
 
     /**
      * Add a field to unset.

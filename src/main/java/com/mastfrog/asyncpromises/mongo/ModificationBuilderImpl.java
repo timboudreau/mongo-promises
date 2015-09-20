@@ -42,13 +42,13 @@ final class ModificationBuilderImpl<T> implements ModificationBuilder<T> {
     private final Map<String, Object> setOnInsert = new HashMap<>();
     private final Map<String, String> rename = new HashMap<>();
     private final Set<String> unset = new HashSet<>();
-    final UpdateBuilderImpl<T> update;
+    final Factory<T> factory;
 
-    ModificationBuilderImpl(UpdateBuilderImpl<T> update) {
-        this.update = update;
+    ModificationBuilderImpl(Factory<T> factory) {
+        this.factory = factory;
     }
-
-    public UpdateBuilderImpl<T> build() {
+    
+    Document toDocument() {
         Document result = new Document();
         if (!set.isEmpty()) {
             result.append("$set", new Document(set));
@@ -79,7 +79,32 @@ final class ModificationBuilderImpl<T> implements ModificationBuilder<T> {
             }
             result.append("$rename", rn);
         }
-        return update.modification(result);
+        return result;
+    }
+    
+    static <T> ModificationBuilder<UpdateBuilder<T>> create(UpdateBuilderImpl<T> impl) {
+        return new ModificationBuilderImpl<>(new UpdateFactory<>(impl));
+    }
+    
+    interface Factory<R> {
+        R build(Document document);
+    }
+    
+    static final class UpdateFactory<T> implements Factory<UpdateBuilder<T>> {
+        private final UpdateBuilderImpl<T> update;
+
+        public UpdateFactory(UpdateBuilderImpl<T> update) {
+            this.update = update;
+        }
+
+        @Override
+        public UpdateBuilder<T> build(Document document) {
+            return update.modification(document);
+        }
+    }
+
+    public T build() {
+        return factory.build(toDocument());
     }
 
     public ModificationBuilder<T> rename(String old, String nue) {
@@ -140,5 +165,4 @@ final class ModificationBuilderImpl<T> implements ModificationBuilder<T> {
         pull.put(name, val);
         return this;
     }
-
 }

@@ -24,57 +24,29 @@
 package com.mastfrog.asyncpromises.mongo;
 
 import com.mastfrog.asyncpromises.AsyncPromise;
-import com.mongodb.client.result.UpdateResult;
+import com.mongodb.client.model.ReturnDocument;
+import java.util.concurrent.TimeUnit;
 import org.bson.conversions.Bson;
 
 /**
- * Builder to make it easy to perform updates.
  *
  * @author Tim Boudreau
  */
-public interface UpdateBuilder<T> {
+public interface FindOneAndUpdateBuilder<T, R> {
 
-    /**
-     * Set whether or not this is an upsert.
-     * @param upsert True if an upsert, false if not
-     * @return this
-     */
-    UpdateBuilder<T> upsert(boolean upsert);
+    AsyncPromise<R, T> build();
 
-    /**
-     * Set this to be an upsert.
-     * @return this
-     */
-    UpdateBuilder<T> upsert();
+    FindOneAndUpdateBuilder<T, R> maxTime(long maxTime, TimeUnit timeUnit);
 
-    /**
-     * Get a ModificationBuilder which makes it easy to correctly set
-     * up MongoDB modification options.
-     * 
-     * @return this
-     */
-    ModificationBuilder<UpdateBuilder<T>> modification();
+    FindOneAndUpdateBuilder<T, R> projection(Bson projection);
 
-    /**
-     * Manually set the modification to make as BSON.
-     * @param update The update
-     * @return this
-     */
-    UpdateBuilder<T> modification(Bson update);
+    FindOneAndUpdateBuilder<T, R> returnDocument(ReturnDocument returnDocument);
 
-    /**
-     * Create a promise to update all records that match the
-     * query you pass to the returned promise.
-     * 
-     * @return The promise
-     */
-    AsyncPromise<T, UpdateResult> updateMany();
+    FindOneAndUpdateBuilder<T, R> sort(Bson sort);
 
-    /**
-     * Create a promise to update all records that match the
-     * query you pass to the returned promise.
-     * 
-     * @return The promise
-     */
-    AsyncPromise<T, UpdateResult> updateOne();
+    FindOneAndUpdateBuilder<T, R> upsert(boolean upsert);
+    FindOneAndUpdateBuilder<T, R> upsert();
+    
+    ProjectionBuilder<FindOneAndUpdateBuilder<T,R>> projection();
+    
 }

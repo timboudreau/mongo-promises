@@ -34,12 +34,48 @@ import org.bson.conversions.Bson;
  */
 final class UpdateBuilderImpl<T> implements UpdateBuilder<T> {
 
-    private UpdateOptions opts = new UpdateOptions();
+    UpdateOptions opts = new UpdateOptions();
     private Bson update;
-    private final CollectionPromises<T> promises;
+    private final Factory<T> factory;
 
-    UpdateBuilderImpl(CollectionPromises<T> promises) {
-        this.promises = promises;
+    UpdateBuilderImpl(Factory<T> factory) {
+        this.factory = factory;
+    }
+    
+    static UpdateBuilderImpl<Bson> create(CollectionPromises<?> promises) {
+        return new UpdateBuilderImpl<>(new StdFactory(promises));
+    }
+
+    interface Factory<T> {
+
+        public AsyncPromise<T, UpdateResult> updateMany(UpdateBuilderImpl<?> builder);
+
+        public AsyncPromise<T, UpdateResult> updateOne(UpdateBuilderImpl<?> builder);
+    }
+
+    static final class StdFactory implements Factory<Bson> {
+
+        private final CollectionPromises<?> promises;
+
+        public StdFactory(CollectionPromises<?> promises) {
+            this.promises = promises;
+        }
+
+        @Override
+        public AsyncPromise<Bson, UpdateResult> updateMany(UpdateBuilderImpl<?> builder) {
+            if (builder.update == null) {
+                throw new IllegalArgumentException("Modification not set");
+            }
+            return promises.updateMany(builder.update, builder.opts);
+        }
+
+        @Override
+        public AsyncPromise<Bson, UpdateResult> updateOne(UpdateBuilderImpl<?> builder) {
+            if (builder.update == null) {
+                throw new IllegalArgumentException("Modification not set");
+            }
+            return promises.updateOne(builder.update);
+        }
     }
 
     @Override
@@ -55,8 +91,8 @@ final class UpdateBuilderImpl<T> implements UpdateBuilder<T> {
     }
 
     @Override
-    public ModificationBuilder<T> modification() {
-        return new ModificationBuilderImpl<>(this);
+    public ModificationBuilder<UpdateBuilder<T>> modification() {
+        return ModificationBuilderImpl.create(this);
     }
 
     @Override
@@ -66,12 +102,12 @@ final class UpdateBuilderImpl<T> implements UpdateBuilder<T> {
     }
 
     @Override
-    public AsyncPromise<Bson, UpdateResult> updateMany() {
-        return promises.updateMany(update, opts);
+    public AsyncPromise<T, UpdateResult> updateMany() {
+        return factory.updateMany(this);
     }
 
     @Override
-    public AsyncPromise<Bson, UpdateResult> updateOne() {
-        return promises.updateOne(update);
+    public AsyncPromise<T, UpdateResult> updateOne() {
+        return factory.updateOne(this);
     }
 }

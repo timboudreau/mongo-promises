@@ -35,6 +35,7 @@ import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.FindIterable;
 import com.mongodb.async.client.MongoCollection;
 import com.mongodb.client.model.CountOptions;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.InsertManyOptions;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.result.DeleteResult;
@@ -211,33 +212,72 @@ public class CollectionPromises<T> {
         AsyncPromise<Bson, UpdateResult> m = AsyncPromise.create(new Logic<Bson, UpdateResult>() {
             @Override
             public void run(Bson data, Trigger<UpdateResult> next, PromiseContext context) throws Exception {
-                collection.updateMany(modification, data, opts, new SRC<>(next));
+                collection.updateMany(data, modification, opts, new SRC<>(next));
             }
         });
         return m;
     }
-    
+
     /**
-     * Perform a find() or findOne() using a query builder to assemble the query
-     * first.
-     * 
-     * @return 
+     * Create a promise for find one and update.
+     *
+     * @param modification The modification (the query will be passed to the
+     * returned promise's start() method).
+     * @param opts The options
+     * @return A promise
      */
-    public QueryBuilder<T,FindBuilder<T,Void>> query() {
+    public AsyncPromise<Bson, T> findOneAndUpdate(final Bson modification, final FindOneAndUpdateOptions opts) {
+        AsyncPromise<Bson, T> m = AsyncPromise.create(new Logic<Bson, T>() {
+
+            @Override
+            public void run(Bson data, Trigger<T> next, PromiseContext context) throws Exception {
+                collection.findOneAndUpdate(data, modification, opts, new SRC<T>(next));
+            }
+        });
+        return m;
+    }
+
+    /**
+     * Create a builder for find-and-update. The result of this is a chained set
+     * of builders (you will call build() several times) - first you set up the
+     * query, then the modification, then the find and update options.
+     *
+     * @return A query builder
+     */
+    public QueryBuilder<T, ModificationBuilder<FindOneAndUpdateBuilder<T, Void>>> findOneAndUpdate() {
+        return QueryBuilderImpl.createForFindAndModify(this);
+    }
+
+    /**
+     * Perform a find() or findOne() using a query builder to assemble the
+     * query. first.
+     *
+     * @return
+     */
+    public QueryBuilder<T, FindBuilder<T, Void>> query() {
         return QueryBuilderImpl.create(this);
     }
 
     /**
-     * Get a builder to configure and execute an update of one or many
+     * Get a builder to configure and execute an update of one or many.
      * documents.
      *
      * @return The update builder
      */
-    public UpdateBuilder updateMany() {
-        return new UpdateBuilderImpl<>(this);
+    public UpdateBuilder<Bson> update() {
+        return UpdateBuilderImpl.create(this);
     }
 
-    AsyncPromise<Bson, T> findOne(final FindBuilderImpl<T,?> builder) {
+    /**
+     * Create a promise for updating using a builder.
+     *
+     * @return A builder
+     */
+    public QueryBuilder<T, ModificationBuilder<UpdateBuilder<Void>>> updateWithQuery() {
+        return QueryBuilderImpl.createForUpdate(this);
+    }
+
+    AsyncPromise<Bson, T> findOne(final FindBuilderImpl<T, ?> builder) {
         AsyncPromise<Bson, T> m = AsyncPromise.create(new SimpleLogic<Bson, T>() {
             @Override
             public void run(Bson data, Trigger<T> next) throws Exception {
@@ -250,27 +290,28 @@ public class CollectionPromises<T> {
 
     /**
      * Count documents, supplying your own Bson to the promise.
-     * 
+     *
      * @return A CountBuilder
      */
     public CountBuilder<Bson> count() {
         return CountBuilderImpl.create(this);
     }
-    
+
     /**
      * Count documents, using a QueryBuilder to build the query to match
      * against.
-     * 
+     *
      * @return A query builder
      */
-    public QueryBuilder<T,CountBuilder<Void>> countWithQuery() {
+    public QueryBuilder<T, CountBuilder<Void>> countWithQuery() {
         QueryBuilderImpl<T, CountBuilder<Void>> x = QueryBuilderImpl.createForCount(this);
         return x;
     }
 
     /**
-     * Count documents, supplying your own Bson to the promise and using
-     * the passed count options.
+     * Count documents, supplying your own Bson to the promise and using the
+     * passed count options.
+     *
      * @param opts The count options
      * @return A promise
      */
@@ -284,7 +325,7 @@ public class CollectionPromises<T> {
         });
     }
 
-    AsyncPromise<Bson, List<T>> find(final FindBuilderImpl<T,?> builder, final FindReceiver<List<T>> withResults) {
+    AsyncPromise<Bson, List<T>> find(final FindBuilderImpl<T, ?> builder, final FindReceiver<List<T>> withResults) {
         AsyncPromise<Bson, AsyncBatchCursor<T>> m = AsyncPromise.create(new Logic<Bson, AsyncBatchCursor<T>>() {
             @Override
             public void run(Bson data, Trigger<AsyncBatchCursor<T>> next, PromiseContext context) throws Exception {
@@ -324,7 +365,7 @@ public class CollectionPromises<T> {
         return m.then(cursorPromise);
     }
 
-    FindBuilderImpl<T,Bson> findImpl() {
+    FindBuilderImpl<T, Bson> findImpl() {
         return FindBuilderImpl.create(this);
     }
 
@@ -335,7 +376,7 @@ public class CollectionPromises<T> {
      *
      * @return A find builder
      */
-    public FindBuilder<T,Bson> find() {
+    public FindBuilder<T, Bson> find() {
         return findImpl();
     }
 

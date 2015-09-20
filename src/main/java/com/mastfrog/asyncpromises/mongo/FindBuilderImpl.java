@@ -69,6 +69,17 @@ final class FindBuilderImpl<T, I> implements FindBuilder<T, I> {
         return new FindBuilderImpl<>(new VoidFactory<T>(promises, query));
     }
 
+    @Override
+    public ProjectionBuilder<FindBuilder<T, I>> projection() {
+        return new ProjectionBuilderImpl<>(new ProjectionBuilderImpl.Factory<FindBuilder<T, I>>(){
+            @Override
+            public FindBuilder<T, I> build(Document projection) {
+                FindBuilderImpl.this.projection = projection;
+                return FindBuilderImpl.this;
+            }
+        });
+    }
+
     static class VoidFactory<T> implements Factory<T, Void> {
 
         private final Factory<T, Bson> standard;
@@ -111,7 +122,6 @@ final class FindBuilderImpl<T, I> implements FindBuilder<T, I> {
                 }
             }).then(standard.find(builder, logic));
         }
-
     }
 
     static class StandardFactory<T> implements Factory<T, Bson> {
