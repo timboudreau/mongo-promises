@@ -70,7 +70,22 @@ public interface QueryBuilder<T, R> {
      * @return this
      */
     public QueryBuilder<T, R> lessThan(String key, Number value);
-
+    /**
+     * Test that the named property is less than or equal to the passed value
+     *
+     * @param key The property name
+     * @param value The value
+     * @return this
+     */
+    public QueryBuilder<T, R> lessThanOrEqual(String key, Number value);
+    /**
+     * Test that the named property is greater than or equal to the passed value
+     *
+     * @param key The property name
+     * @param value The value
+     * @return this
+     */
+    public QueryBuilder<T, R> greaterThanOrEqual(String key, Number value);
     /**
      * Exactly match a document's ID.
      *

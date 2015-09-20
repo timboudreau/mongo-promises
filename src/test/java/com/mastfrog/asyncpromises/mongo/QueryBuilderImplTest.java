@@ -42,16 +42,26 @@ public class QueryBuilderImplTest {
     @Test
     public void test() {
         QueryBuilderImpl<String,Document> q = new QueryBuilderImpl<>(f);
-        Document d = q.equal("skidoo", 23).embedded("foo").embedded("bar").equal("meaning", 42)
-                .build()
-                .build()
-                .elemMatch("array").equal("name", "Joe").greaterThan("age", 18).lessThan("age", 65).build()
+        Document d = 
+                q.equal("skidoo", 23) // property skidoo must be 23
+                .embedded("foo").embedded("bar") // look at properties of a nested document foo.bar
+                        .equal("meaning", 42)
+                    .build() // close bar
+                .build() // close foo
+                .elemMatch("people")
+                        .equal("name", "Joe")
+                        .greaterThan("age", 18)
+                        .lessThan("age", 65).build()
+                .exactSubdocument("logins")
+                        .equal("country", "USA")
+                        .build()
                 .in("city", "Boston", "New York", "Shutesbury").build();
         
         System.out.println("DOCUMENT: " + d);
         assertEquals(Integer.valueOf(23), d.get("skidoo"));
         assertEquals(Integer.valueOf(42), d.get("foo.bar.meaning"));
         Document in = (Document) d.get("city");
+        System.out.println(in);
         assertNotNull(in);
         assertEquals(in.get("$in"), Arrays.asList("Boston", "New York", "Shutesbury"));
     }
