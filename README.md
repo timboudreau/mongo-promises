@@ -14,6 +14,8 @@ non-typesafe syntax in MongoDB.
 To use, simply create a `CollectionPromises<T>` over a native MongoDB `MongoCollection<T>`,
 and use the instance methods on that.
 
+The point is to provide a clean abstraction for chaining together asynchronous database operations.
+
 Example
 -------
 
@@ -38,7 +40,6 @@ AsyncPromise<Bson, Long> promise = p.find().descendingSortBy("ix").withBatchSize
     }
 }).then(new Document(), p.count().maxTime(10, TimeUnit.SECONDS).count());
 
-
 promise.start(new Document(), new Trigger<Long>(){
 
     @Override
@@ -49,8 +50,20 @@ promise.start(new Document(), new Trigger<Long>(){
 });
 ```
 
-(if you're using Java 8, the above code can be made simpler with lambdas, but this library
-is compatible with Java 7).
+Similar code using JDK 8's lambads:
+
+```java
+AsyncPromise<Void, Long> promise = p.query().equal("name","foo").build()
+    .descendingSortBy("ix").withBatchSize(20).find(
+(List<Document> obj, Trigger<Boolean> trigger, PromiseContext context)-> {
+        all.addAll(obj);
+        trigger.trigger(true, null);
+}).then((Void data, Trigger<Void> next) -> {
+        nextWasRun.set(true);
+        next.trigger(null, null);
+}).then(new Document(), p.count().maxTime(10, TimeUnit.SECONDS).count())
+.start();
+```
 
 Builders
 --------
