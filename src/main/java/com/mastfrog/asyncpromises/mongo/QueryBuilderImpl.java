@@ -67,14 +67,23 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
     static <T> QueryBuilderImpl<T, CountBuilder<Void>> createForCount(CollectionPromises<T> promises) {
         return new QueryBuilderImpl<>(new CountFactory<T>(promises));
     }
-    
-    static <T> QueryBuilderImpl<T, ModificationBuilder<FindOneAndUpdateBuilder<T,Void>>> createForFindAndModify(CollectionPromises<T> promises) {
+
+    static <T> QueryBuilderImpl<T, ModificationBuilder<FindOneAndUpdateBuilder<T, Void>>> createForFindAndModify(CollectionPromises<T> promises) {
         return new QueryBuilderImpl<>(new FindAndModifyOneFactory<>(promises));
     }
-    
-    static <T> QueryBuilder<T, ModificationBuilder<UpdateBuilder<Void>>> createForUpdate(CollectionPromises<T> promises) {
+
+    static <T> QueryBuilder<T, ModificationBuilder<UpdateBuilder<AsyncPromise<Void, UpdateResult>>>> createForUpdate(CollectionPromises<T> promises) {
         return new QueryBuilderImpl<>(new UpdateFactory<>(promises));
     }
+
+    static <T> QueryBuilderImpl<T, ModificationBuilder<UpdateBuilder<BulkWriteBuilder<T>>>> createForBulkWrite(BulkWriteBuilder<T> builder) {
+        return new QueryBuilderImpl<>(new BulkWriteUpdateFactory<>(builder));
+    }
+
+    static <T> QueryBuilderImpl<T, ReplaceBuilder<AsyncPromise<Void, UpdateResult>, T>> createForReplace(CollectionPromises<T> promises) {
+        return new QueryBuilderImpl<>(new ReplaceFactory<>(promises));
+    }
+    
 
     static class BsonFactory<T> implements Factory<T, Document> {
 
@@ -83,8 +92,9 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
             return document;
         }
     }
-    
-    static class UpdateFactory<T> implements Factory<T, ModificationBuilder<UpdateBuilder<Void>>>  {
+
+    static class UpdateFactory<T> implements Factory<T, ModificationBuilder<UpdateBuilder<AsyncPromise<Void, UpdateResult>>>> {
+
         private final CollectionPromises<T> promises;
 
         public UpdateFactory(CollectionPromises<T> promises) {
@@ -92,16 +102,16 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
         }
 
         @Override
-        public ModificationBuilder<UpdateBuilder<Void>> create(final Document query) {
-            return new ModificationBuilderImpl<>(new ModificationBuilderImpl.Factory<UpdateBuilder<Void>>() {
+        public ModificationBuilder<UpdateBuilder<AsyncPromise<Void, UpdateResult>>> create(final Document query) {
+            return new ModificationBuilderImpl<>(new ModificationBuilderImpl.Factory<UpdateBuilder<AsyncPromise<Void, UpdateResult>>>() {
 
                 @Override
-                public UpdateBuilder<Void> build(final Document modification) {
-                    return new UpdateBuilderImpl<>(new UpdateBuilderImpl.Factory<Void>(){
+                public UpdateBuilder<AsyncPromise<Void, UpdateResult>> build(final Document modification) {
+                    return new UpdateBuilderImpl<>(new UpdateBuilderImpl.Factory<AsyncPromise<Void, UpdateResult>>() {
 
                         @Override
                         public AsyncPromise<Void, UpdateResult> updateMany(UpdateBuilderImpl<?> builder) {
-                            return AsyncPromise.create(new SimpleLogic<Void, Bson>(){
+                            return AsyncPromise.create(new SimpleLogic<Void, Bson>() {
 
                                 @Override
                                 public void run(Void data, Trigger<Bson> next) throws Exception {
@@ -112,7 +122,7 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
 
                         @Override
                         public AsyncPromise<Void, UpdateResult> updateOne(UpdateBuilderImpl<?> builder) {
-                            return AsyncPromise.create(new SimpleLogic<Void, Bson>(){
+                            return AsyncPromise.create(new SimpleLogic<Void, Bson>() {
 
                                 @Override
                                 public void run(Void data, Trigger<Bson> next) throws Exception {
@@ -124,10 +134,72 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
                 }
             });
         }
-        
     }
-    
-    static class FindAndModifyOneFactory<T> implements Factory<T, ModificationBuilder<FindOneAndUpdateBuilder<T,Void>>> {
+
+    static class BulkWriteUpdateFactory<T> implements Factory<T, ModificationBuilder<UpdateBuilder<BulkWriteBuilder<T>>>> {
+
+        private final BulkWriteBuilder<T> builder;
+
+        public BulkWriteUpdateFactory(BulkWriteBuilder<T> builder) {
+            this.builder = builder;
+        }
+
+        @Override
+        public ModificationBuilder<UpdateBuilder<BulkWriteBuilder<T>>> create(final Document query) {
+            return new ModificationBuilderImpl<>(new ModificationBuilderImpl.Factory<UpdateBuilder<BulkWriteBuilder<T>>>() {
+
+                @Override
+                public UpdateBuilder<BulkWriteBuilder<T>> build(final Document modification) {
+                    return new UpdateBuilderImpl<>(new UpdateBuilderImpl.Factory<BulkWriteBuilder<T>>() {
+
+                        @Override
+                        public BulkWriteBuilder<T> updateMany(UpdateBuilderImpl<?> bldr) {
+                            builder.updateMany(query, modification, bldr.opts);
+                            return builder;
+                        }
+
+                        @Override
+                        public BulkWriteBuilder<T> updateOne(UpdateBuilderImpl<?> bldr) {
+                            builder.updateOne(query, modification, bldr.opts);
+                            return builder;
+                        }
+                    }).modification(modification);
+                }
+
+            });
+        }
+    }
+
+//    QueryBuilder<T, ModificationBuilder<ReplaceBuilder<AsyncPromise<Void,UpdateResult>>>>
+    static class ReplaceFactory<T> implements Factory<T, ReplaceBuilder<AsyncPromise<Void, UpdateResult>, T>> {
+
+        private final CollectionPromises<T> promises;
+
+        public ReplaceFactory(CollectionPromises<T> promises) {
+            this.promises = promises;
+        }
+
+        @Override
+        public ReplaceBuilder<AsyncPromise<Void, UpdateResult>, T> create(final Document document) {
+            return new ReplaceBuilderImpl<>(new ReplaceBuilderImpl.Factory<AsyncPromise<Void, UpdateResult>, T>() {
+
+                @Override
+                public AsyncPromise<Void, UpdateResult> replace(ReplaceBuilderImpl<AsyncPromise<Void, UpdateResult>, T> builder, T replacement) {
+                    return AsyncPromise.create(new Logic<Void, Bson>() {
+
+                        @Override
+                        public void run(Void data, Trigger<Bson> next, PromiseContext context) throws Exception {
+                            next.trigger(document, null);
+                        }
+                    }).then(promises.replaceOne(replacement, builder.opts));
+                }
+            });
+        }
+
+    }
+
+    static class FindAndModifyOneFactory<T> implements Factory<T, ModificationBuilder<FindOneAndUpdateBuilder<T, Void>>> {
+
         private final CollectionPromises<T> promises;
 
         public FindAndModifyOneFactory(CollectionPromises<T> promises) {
@@ -136,15 +208,15 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
 
         @Override
         public ModificationBuilder<FindOneAndUpdateBuilder<T, Void>> create(final Document query) {
-            return new ModificationBuilderImpl<>(new ModificationBuilderImpl.Factory<FindOneAndUpdateBuilder<T,Void>>() {
+            return new ModificationBuilderImpl<>(new ModificationBuilderImpl.Factory<FindOneAndUpdateBuilder<T, Void>>() {
 
                 @Override
-                public FindOneAndUpdateBuilder<T,Void> build(final Document modification) {
-                    FindOneAndUpdateBuilderImpl.Factory<T,Void> factory = new FindOneAndUpdateBuilderImpl.Factory<T,Void>() {
+                public FindOneAndUpdateBuilder<T, Void> build(final Document modification) {
+                    FindOneAndUpdateBuilderImpl.Factory<T, Void> factory = new FindOneAndUpdateBuilderImpl.Factory<T, Void>() {
 
                         @Override
                         public AsyncPromise<Void, T> build(final FindOneAndUpdateBuilderImpl<T, Void> builder) {
-                            return AsyncPromise.create(new Logic<Void,Bson>(){
+                            return AsyncPromise.create(new Logic<Void, Bson>() {
 
                                 @Override
                                 public void run(Void data, Trigger<Bson> next, PromiseContext context) throws Exception {
@@ -153,7 +225,7 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
                             }).then(promises.findOneAndUpdate(modification, builder.opts));
                         }
                     };
-                    return new FindOneAndUpdateBuilderImpl<T,Void>(factory);
+                    return new FindOneAndUpdateBuilderImpl<T, Void>(factory);
                 }
             });
         }

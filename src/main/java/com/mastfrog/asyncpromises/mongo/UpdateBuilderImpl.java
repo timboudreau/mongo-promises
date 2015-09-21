@@ -42,18 +42,18 @@ final class UpdateBuilderImpl<T> implements UpdateBuilder<T> {
         this.factory = factory;
     }
     
-    static UpdateBuilderImpl<Bson> create(CollectionPromises<?> promises) {
+    static UpdateBuilderImpl<AsyncPromise<Bson, UpdateResult>> create(CollectionPromises<?> promises) {
         return new UpdateBuilderImpl<>(new StdFactory(promises));
     }
 
     interface Factory<T> {
 
-        public AsyncPromise<T, UpdateResult> updateMany(UpdateBuilderImpl<?> builder);
+        public T updateMany(UpdateBuilderImpl<?> builder);
 
-        public AsyncPromise<T, UpdateResult> updateOne(UpdateBuilderImpl<?> builder);
+        public T updateOne(UpdateBuilderImpl<?> builder);
     }
 
-    static final class StdFactory implements Factory<Bson> {
+    static final class StdFactory implements Factory<AsyncPromise<Bson, UpdateResult>> {
 
         private final CollectionPromises<?> promises;
 
@@ -102,12 +102,12 @@ final class UpdateBuilderImpl<T> implements UpdateBuilder<T> {
     }
 
     @Override
-    public AsyncPromise<T, UpdateResult> updateMany() {
+    public T updateMany() {
         return factory.updateMany(this);
     }
 
     @Override
-    public AsyncPromise<T, UpdateResult> updateOne() {
+    public T updateOne() {
         return factory.updateOne(this);
     }
 }

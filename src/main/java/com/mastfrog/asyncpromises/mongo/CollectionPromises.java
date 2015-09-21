@@ -34,12 +34,16 @@ import com.mongodb.async.AsyncBatchCursor;
 import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.FindIterable;
 import com.mongodb.async.client.MongoCollection;
+import com.mongodb.bulk.BulkWriteResult;
+import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.CountOptions;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.InsertManyOptions;
 import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.WriteModel;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
+import java.util.ArrayList;
 import java.util.List;
 import org.bson.conversions.Bson;
 
@@ -117,7 +121,21 @@ public class CollectionPromises<T> {
             }
         });
     }
+    
+    public AsyncPromise<Bson, UpdateResult> replaceOne(final T replacement, final UpdateOptions opts) {
+        return AsyncPromise.create(new Logic<Bson, UpdateResult>(){
 
+            @Override
+            public void run(Bson data, Trigger<UpdateResult> next, PromiseContext context) throws Exception {
+                collection.replaceOne(data, replacement, new SRC<>(next));
+            }
+        });
+    }
+    
+    public QueryBuilder<T, ReplaceBuilder<AsyncPromise<Void, UpdateResult>, T>> replaceOne() {
+        return QueryBuilderImpl.createForReplace(this);
+    }
+    
     /**
      * Create a promsie to delete many elements when passed the query.
      *
@@ -264,17 +282,44 @@ public class CollectionPromises<T> {
      *
      * @return The update builder
      */
-    public UpdateBuilder<Bson> update() {
+    public UpdateBuilder<AsyncPromise<Bson, UpdateResult>> update() {
         return UpdateBuilderImpl.create(this);
     }
-
+    
     /**
      * Create a promise for updating using a builder.
      *
      * @return A builder
      */
-    public QueryBuilder<T, ModificationBuilder<UpdateBuilder<Void>>> updateWithQuery() {
+    public QueryBuilder<T, ModificationBuilder<UpdateBuilder<AsyncPromise<Void, UpdateResult>>>> updateWithQuery() {
         return QueryBuilderImpl.createForUpdate(this);
+    }
+
+    /**
+     * Get a builder for bulk writes.
+     *
+     * @return A builder
+     */
+    public BulkWriteBuilder<T> bulkWrite() {
+        return BulkWriteBuilderImpl.create(this);
+    }
+
+    /**
+     * Perform a bulk write, passing the raw arguments.
+     *
+     * @param requests The requests
+     * @param opts The options
+     * @return A promise
+     */
+    public AsyncPromise<Void, BulkWriteResult> bulkWrite(List<WriteModel<? extends T>> requests, final BulkWriteOptions opts) {
+        final List<WriteModel<? extends T>> reqs = new ArrayList<>(requests);
+        return AsyncPromise.create(new Logic<Void, BulkWriteResult>() {
+
+            @Override
+            public void run(Void data, Trigger<BulkWriteResult> next, PromiseContext context) throws Exception {
+                collection.bulkWrite(reqs, opts, new SRC<BulkWriteResult>(next));
+            }
+        });
     }
 
     AsyncPromise<Bson, T> findOne(final FindBuilderImpl<T, ?> builder) {

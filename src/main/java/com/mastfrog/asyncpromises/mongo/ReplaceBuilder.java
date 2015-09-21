@@ -23,56 +23,34 @@
  */
 package com.mastfrog.asyncpromises.mongo;
 
-import org.bson.conversions.Bson;
-
 /**
  * Builder to make it easy to perform updates.
  *
  * @author Tim Boudreau
  */
-public interface UpdateBuilder<T> {
+public interface ReplaceBuilder<T,R> {
 
     /**
      * Set whether or not this is an upsert.
+     *
      * @param upsert True if an upsert, false if not
      * @return this
      */
-    UpdateBuilder<T> upsert(boolean upsert);
+    ReplaceBuilder<T,R> upsert(boolean upsert);
 
     /**
      * Set this to be an upsert.
+     *
      * @return this
      */
-    UpdateBuilder<T> upsert();
+    ReplaceBuilder<T,R> upsert();
 
     /**
-     * Get a ModificationBuilder which makes it easy to correctly set
-     * up MongoDB modification options.
-     * 
-     * @return this
-     */
-    ModificationBuilder<UpdateBuilder<T>> modification();
-
-    /**
-     * Manually set the modification to make as BSON.
-     * @param update The update
-     * @return this
-     */
-    UpdateBuilder<T> modification(Bson update);
-
-    /**
-     * Create a promise to update all records that match the
-     * query you pass to the returned promise.
-     * 
+     * Create a promise to replace a record that matches query you pass to the
+     * returned promise.
+     *
+     * @param replacement The replacement object
      * @return The promise
      */
-    T updateMany();
-
-    /**
-     * Create a promise to update all records that match the
-     * query you pass to the returned promise.
-     * 
-     * @return The promise
-     */
-    T updateOne();
+    T replaceWith(R replacement);
 }

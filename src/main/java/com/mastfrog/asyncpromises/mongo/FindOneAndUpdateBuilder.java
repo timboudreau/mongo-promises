@@ -34,19 +34,65 @@ import org.bson.conversions.Bson;
  */
 public interface FindOneAndUpdateBuilder<T, R> {
 
+    /**
+     * Build the promise.
+     *
+     * @return The promise
+     */
     AsyncPromise<R, T> build();
 
+    /**
+     * Set the maximum time to run before failure.
+     *
+     * @param maxTime The maximum time
+     * @param timeUnit The units
+     * @return this
+     */
     FindOneAndUpdateBuilder<T, R> maxTime(long maxTime, TimeUnit timeUnit);
 
+    /**
+     * Set the projection as a raw BSON object
+     *
+     * @param projection The projection
+     * @return this
+     */
     FindOneAndUpdateBuilder<T, R> projection(Bson projection);
 
+    /**
+     * Set the projection using a builder.
+     *
+     * @return this
+     */
+    ProjectionBuilder<FindOneAndUpdateBuilder<T, R>> projection();
+
+    /**
+     * Set which document should be returned, the modified one or the original.
+     *
+     * @param returnDocument Which document should be returned
+     * @return this
+     */
     FindOneAndUpdateBuilder<T, R> returnDocument(ReturnDocument returnDocument);
 
+    /**
+     * Set the sort criteria when querying.
+     *
+     * @param sort The sort criteria
+     * @return this
+     */
     FindOneAndUpdateBuilder<T, R> sort(Bson sort);
 
+    /**
+     * Set whether or not to do an upsert.
+     *
+     * @param upsert Whether or not to upsert
+     * @return this
+     */
     FindOneAndUpdateBuilder<T, R> upsert(boolean upsert);
+
+    /**
+     * Set this builder to perform an upsert if necessary.
+     *
+     * @return this
+     */
     FindOneAndUpdateBuilder<T, R> upsert();
-    
-    ProjectionBuilder<FindOneAndUpdateBuilder<T,R>> projection();
-    
 }

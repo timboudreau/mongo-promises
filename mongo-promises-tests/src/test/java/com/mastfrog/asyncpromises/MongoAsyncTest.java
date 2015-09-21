@@ -38,6 +38,7 @@ import com.mastfrog.giulius.tests.TestWith;
 import com.mastfrog.util.Exceptions;
 import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoCollection;
+import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.result.UpdateResult;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -144,19 +145,19 @@ public class MongoAsyncTest {
         final Document[] oldAndNew = new Document[2];
         final CountDownLatch updateLatch = new CountDownLatch(1);
         p.findOneAndUpdate().equal("ix", 0).build().set("name", "Updated name").build().maxTime(10, TimeUnit.SECONDS)
-                .projection().ignore("_id").build().build().onFailure(fh).then(new SimpleLogic<Document,Void>(){
+                .projection().ignore("_id").build().build().onFailure(fh).then(new SimpleLogic<Document, Void>() {
 
             @Override
             public void run(Document data, Trigger<Void> next) throws Exception {
                 oldAndNew[0] = data;
                 next.trigger(null, null);
             }
-        }).then(null, p.query().equal("ix", 0).build().findOne().then(new Logic<Document,Void>(){
+        }).then(null, p.query().equal("ix", 0).build().findOne().then(new Logic<Document, Void>() {
 
             @Override
             public void run(Document data, Trigger<Void> next, PromiseContext context) throws Exception {
                 oldAndNew[1] = data;
-                next.trigger(null,null);
+                next.trigger(null, null);
                 updateLatch.countDown();
             }
         })).start();
@@ -167,7 +168,7 @@ public class MongoAsyncTest {
         Assert.assertNotEquals(oldAndNew[0], oldAndNew[1]);
         final UpdateResult[] update = new UpdateResult[1];
         final CountDownLatch manyLatch = new CountDownLatch(1);
-        p.updateWithQuery().lessThan("ix", 25).build().set("foo", "bar").build().updateMany().onFailure(fh).then(new SimpleLogic<UpdateResult, Void>(){
+        p.updateWithQuery().lessThan("ix", 25).build().set("foo", "bar").build().updateMany().onFailure(fh).then(new SimpleLogic<UpdateResult, Void>() {
 
             @Override
             public void run(UpdateResult data, Trigger<Void> next) throws Exception {
@@ -176,7 +177,7 @@ public class MongoAsyncTest {
                 manyLatch.countDown();
             }
         }).start();
-        
+
         manyLatch.await(10, SECONDS);
         fh.assertNotThrown();
         assertNotNull(update[0]);
@@ -184,7 +185,7 @@ public class MongoAsyncTest {
         assertEquals(25, update[0].getModifiedCount());
         final Document[] modif = new Document[1];
         final CountDownLatch modifLatch = new CountDownLatch(1);
-        p.query().equal("ix", 0).build().findOne().onFailure(fh).then(new SimpleLogic<Document,Void>(){
+        p.query().equal("ix", 0).build().findOne().onFailure(fh).then(new SimpleLogic<Document, Void>() {
 
             @Override
             public void run(Document data, Trigger<Void> next) throws Exception {
@@ -197,12 +198,80 @@ public class MongoAsyncTest {
         fh.assertNotThrown();
         assertNotNull(modif[0]);
         assertEquals("bar", modif[0].get("foo"));
+
+        long now = System.currentTimeMillis();
+        List<String> list = Arrays.asList("foo@bar.com", "me@you.com", "joe@joe.com");
+        final CountDownLatch multiLatch = new CountDownLatch(1);
+        p.withType(Document.class)
+                .updateWithQuery().in("ix", 1, 3, 7, 5, 532).build()
+                .set("subscriptions.nl.enabled", true)
+                .setOnInsert("subscriptions.nl.unsubscribe", "x")
+                .setOnInsert("subscriptions.nl.since", now)
+                .setOnInsert("verification", "x").setOnInsert("verified", true).setOnInsert("created", now)
+                .build().upsert().updateMany().onFailure(fh).then(new SimpleLogic<UpdateResult, UpdateResult>() {
+
+            @Override
+            public void run(UpdateResult data, Trigger<UpdateResult> next) throws Exception {
+                update[0] = data;
+                next.trigger(data, null);
+                multiLatch.countDown();
+            }
+        }).start();
+        multiLatch.await(10, SECONDS);
+        System.out.println("UPDATE " + update[0]);
+        fh.assertNotThrown();
+        p.query().equal("created", now).build().withBatchSize(10).find(new FindReceiver<List<Document>>() {
+
+            @Override
+            public void withResults(List<Document> obj, Trigger<Boolean> trigger, PromiseContext context) throws Exception {
+                System.out.println("FOUND " + obj);
+            }
+        }).start();
+
+        final BulkWriteResult[] bw = new BulkWriteResult[1];
+        final CountDownLatch bulkLatch = new CountDownLatch(1);
+        p.bulkWrite()
+                .deleteMany().in("ix", 51, 52, 53).build()
+                .insert(new Document("hello", "word"))
+                .update().equal("ix", 30).build()
+                .set("skidoo", 23).build().updateOne().build().onFailure(fh).then(new SimpleLogic<BulkWriteResult, Void>() {
+            @Override
+            public void run(BulkWriteResult data, Trigger<Void> next) throws Exception {
+                bw[0] = data;
+                next.trigger(null, null);
+                bulkLatch.countDown();
+            }
+        }).start();
+        bulkLatch.await(10, SECONDS);
+        fh.assertNotThrown();
+        assertNotNull(bw[0]);
+        assertEquals(1, bw[0].getInsertedCount());
+        assertEquals(3, bw[0].getDeletedCount());
+        assertEquals(1, bw[0].getModifiedCount());
+        assertEquals(0, bw[0].getUpserts().size());
+        
+        final UpdateResult[] replaceResult = new UpdateResult[1];
+        final CountDownLatch replaceLatch = new CountDownLatch(1);
+        p.replaceOne().equal("ix", 73).build().replaceWith(new Document("ix", 202).append("name", "wookie")).then(new Logic<UpdateResult, Void>(){
+
+            @Override
+            public void run(UpdateResult data, Trigger<Void> next, PromiseContext context) throws Exception {
+                replaceResult[0] = data;
+                replaceLatch.countDown();
+            }
+        }).onFailure(fh).start();
+        replaceLatch.await(10, SECONDS);
+        fh.assertNotThrown();
+        assertNotNull(replaceResult[0]);
+        assertEquals(1, replaceResult[0].getMatchedCount());
     }
 
     static FH fh = new FH();
+
     static class FH implements FailureHandler {
 
         private Throwable thrown;
+
         @Override
         public <T> boolean onFailure(PromiseContext.Key<T> key, T input, Throwable thrown, PromiseContext context) {
             this.thrown = thrown;

@@ -23,56 +23,45 @@
  */
 package com.mastfrog.asyncpromises.mongo;
 
+import com.mastfrog.asyncpromises.AsyncPromise;
+import com.mastfrog.asyncpromises.Logic;
+import com.mastfrog.asyncpromises.PromiseContext;
+import com.mastfrog.asyncpromises.Trigger;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.result.UpdateResult;
 import org.bson.conversions.Bson;
 
 /**
- * Builder to make it easy to perform updates.
  *
  * @author Tim Boudreau
  */
-public interface UpdateBuilder<T> {
+final class ReplaceBuilderImpl<T, R> implements ReplaceBuilder<T, R> {
 
-    /**
-     * Set whether or not this is an upsert.
-     * @param upsert True if an upsert, false if not
-     * @return this
-     */
-    UpdateBuilder<T> upsert(boolean upsert);
+    UpdateOptions opts = new UpdateOptions();
+    private final Factory<T, R> factory;
 
-    /**
-     * Set this to be an upsert.
-     * @return this
-     */
-    UpdateBuilder<T> upsert();
+    ReplaceBuilderImpl(Factory<T, R> factory) {
+        this.factory = factory;
+    }
 
-    /**
-     * Get a ModificationBuilder which makes it easy to correctly set
-     * up MongoDB modification options.
-     * 
-     * @return this
-     */
-    ModificationBuilder<UpdateBuilder<T>> modification();
+    @Override
+    public T replaceWith(R replacement) {
+        return factory.replace(this, replacement);
+    }
 
-    /**
-     * Manually set the modification to make as BSON.
-     * @param update The update
-     * @return this
-     */
-    UpdateBuilder<T> modification(Bson update);
+    interface Factory<T, R> {
+        public T replace(ReplaceBuilderImpl<T, R> builder, R replacement);
+    }
 
-    /**
-     * Create a promise to update all records that match the
-     * query you pass to the returned promise.
-     * 
-     * @return The promise
-     */
-    T updateMany();
+    @Override
+    public ReplaceBuilder<T, R> upsert(boolean upsert) {
+        opts.upsert(upsert);
+        return this;
+    }
 
-    /**
-     * Create a promise to update all records that match the
-     * query you pass to the returned promise.
-     * 
-     * @return The promise
-     */
-    T updateOne();
+    @Override
+    public ReplaceBuilder<T, R> upsert() {
+        opts.upsert(true);
+        return this;
+    }
 }

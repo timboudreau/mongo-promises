@@ -47,7 +47,7 @@ final class ModificationBuilderImpl<T> implements ModificationBuilder<T> {
     ModificationBuilderImpl(Factory<T> factory) {
         this.factory = factory;
     }
-    
+
     Document toDocument() {
         Document result = new Document();
         if (!set.isEmpty()) {
@@ -81,16 +81,18 @@ final class ModificationBuilderImpl<T> implements ModificationBuilder<T> {
         }
         return result;
     }
-    
+
     static <T> ModificationBuilder<UpdateBuilder<T>> create(UpdateBuilderImpl<T> impl) {
         return new ModificationBuilderImpl<>(new UpdateFactory<>(impl));
     }
-    
+
     interface Factory<R> {
+
         R build(Document document);
     }
-    
+
     static final class UpdateFactory<T> implements Factory<UpdateBuilder<T>> {
+
         private final UpdateBuilderImpl<T> update;
 
         public UpdateFactory(UpdateBuilderImpl<T> update) {
