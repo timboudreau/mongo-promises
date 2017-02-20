@@ -117,25 +117,33 @@ public class CollectionPromises<T> {
         return AsyncPromise.create(new Logic<Bson, DeleteResult>() {
             @Override
             public void run(Bson data, Trigger<DeleteResult> next, PromiseContext context) throws Exception {
-                collection.deleteOne(data, new SRC<>(next));
+                try {
+                    collection.deleteOne(data, new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
     }
-    
+
     public AsyncPromise<Bson, UpdateResult> replaceOne(final T replacement, final UpdateOptions opts) {
-        return AsyncPromise.create(new Logic<Bson, UpdateResult>(){
+        return AsyncPromise.create(new Logic<Bson, UpdateResult>() {
 
             @Override
             public void run(Bson data, Trigger<UpdateResult> next, PromiseContext context) throws Exception {
-                collection.replaceOne(data, replacement, new SRC<>(next));
+                try {
+                    collection.replaceOne(data, replacement, new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
     }
-    
+
     public QueryBuilder<T, ReplaceBuilder<AsyncPromise<Void, UpdateResult>, T>> replaceOne() {
         return QueryBuilderImpl.createForReplace(this);
     }
-    
+
     /**
      * Create a promsie to delete many elements when passed the query.
      *
@@ -145,7 +153,11 @@ public class CollectionPromises<T> {
         return AsyncPromise.create(new Logic<Bson, DeleteResult>() {
             @Override
             public void run(Bson data, Trigger<DeleteResult> next, PromiseContext context) throws Exception {
-                collection.deleteMany(data, new SRC<>(next));
+                try {
+                    collection.deleteMany(data, new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
     }
@@ -159,7 +171,11 @@ public class CollectionPromises<T> {
         return AsyncPromise.create(new Logic<T, Void>() {
             @Override
             public void run(final T data, final Trigger<Void> next, PromiseContext context) throws Exception {
-                collection.insertOne(data, new SRC<>(next));
+                try {
+                    collection.insertOne(data, new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
     }
@@ -185,7 +201,11 @@ public class CollectionPromises<T> {
         return AsyncPromise.create(new Logic<List<T>, Void>() {
             @Override
             public void run(List<T> data, Trigger<Void> next, PromiseContext context) throws Exception {
-                collection.insertMany(data, opts, new SRC<>(next));
+                try {
+                    collection.insertMany(data, opts, new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
     }
@@ -198,10 +218,16 @@ public class CollectionPromises<T> {
      * @return A promise
      */
     public AsyncPromise<Bson, UpdateResult> updateOne(final Bson modification) {
+        System.out.println("Do update one " + modification);
         AsyncPromise<Bson, UpdateResult> m = AsyncPromise.create(new Logic<Bson, UpdateResult>() {
             @Override
-            public void run(Bson data, Trigger<UpdateResult> next, PromiseContext context) throws Exception {
-                collection.updateOne(data, modification, new SRC<>(next));
+            public void run(Bson data, final Trigger<UpdateResult> next, PromiseContext context) throws Exception {
+                System.out.println("Perform update query " + data);
+                try {
+                    collection.updateOne(data, modification, new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
         return m;
@@ -230,7 +256,11 @@ public class CollectionPromises<T> {
         AsyncPromise<Bson, UpdateResult> m = AsyncPromise.create(new Logic<Bson, UpdateResult>() {
             @Override
             public void run(Bson data, Trigger<UpdateResult> next, PromiseContext context) throws Exception {
-                collection.updateMany(data, modification, opts, new SRC<>(next));
+                try {
+                    collection.updateMany(data, modification, opts, new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
         return m;
@@ -249,7 +279,11 @@ public class CollectionPromises<T> {
 
             @Override
             public void run(Bson data, Trigger<T> next, PromiseContext context) throws Exception {
-                collection.findOneAndUpdate(data, modification, opts, new SRC<T>(next));
+                try {
+                    collection.findOneAndUpdate(data, modification, opts, new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
         return m;
@@ -285,7 +319,7 @@ public class CollectionPromises<T> {
     public UpdateBuilder<AsyncPromise<Bson, UpdateResult>> update() {
         return UpdateBuilderImpl.create(this);
     }
-    
+
     /**
      * Create a promise for updating using a builder.
      *
@@ -317,7 +351,11 @@ public class CollectionPromises<T> {
 
             @Override
             public void run(Void data, Trigger<BulkWriteResult> next, PromiseContext context) throws Exception {
-                collection.bulkWrite(reqs, opts, new SRC<BulkWriteResult>(next));
+                try {
+                    collection.bulkWrite(reqs, opts, new SRC<BulkWriteResult>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
     }
@@ -326,8 +364,12 @@ public class CollectionPromises<T> {
         AsyncPromise<Bson, T> m = AsyncPromise.create(new SimpleLogic<Bson, T>() {
             @Override
             public void run(Bson data, Trigger<T> next) throws Exception {
-                FindIterable<T> find = builder.apply(collection.find(data));
-                find.first(new SRC<>(next));
+                try {
+                    FindIterable<T> find = builder.apply(collection.find(data));
+                    find.first(new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
         return m;
@@ -365,7 +407,11 @@ public class CollectionPromises<T> {
 
             @Override
             public void run(Bson data, Trigger<Long> next) throws Exception {
-                collection.count(data, opts, new SRC<>(next));
+                try {
+                    collection.count(data, opts, new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
     }
@@ -374,7 +420,11 @@ public class CollectionPromises<T> {
         AsyncPromise<Bson, AsyncBatchCursor<T>> m = AsyncPromise.create(new Logic<Bson, AsyncBatchCursor<T>>() {
             @Override
             public void run(Bson data, Trigger<AsyncBatchCursor<T>> next, PromiseContext context) throws Exception {
-                builder.apply(collection.find(data)).batchCursor(new SRC<>(next));
+                try {
+                    builder.apply(collection.find(data)).batchCursor(new SRC<>(next));
+                } catch (Exception e) {
+                    next.trigger(null, e);
+                }
             }
         });
         final ContinueTrigger cont = new ContinueTrigger();

@@ -30,6 +30,7 @@ import com.mastfrog.asyncpromises.SimpleLogic;
 import com.mastfrog.asyncpromises.Trigger;
 import com.mongodb.client.result.UpdateResult;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -83,7 +84,6 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
     static <T> QueryBuilderImpl<T, ReplaceBuilder<AsyncPromise<Void, UpdateResult>, T>> createForReplace(CollectionPromises<T> promises) {
         return new QueryBuilderImpl<>(new ReplaceFactory<>(promises));
     }
-    
 
     static class BsonFactory<T> implements Factory<T, Document> {
 
@@ -122,6 +122,7 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
 
                         @Override
                         public AsyncPromise<Void, UpdateResult> updateOne(UpdateBuilderImpl<?> builder) {
+                            System.out.println("BUilder update one " + query + " mod " + modification);
                             return AsyncPromise.create(new SimpleLogic<Void, Bson>() {
 
                                 @Override
@@ -267,7 +268,12 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
 
     @Override
     public QueryBuilder<T, R> in(String key, Object... values) {
-        in.put(key, values);
+        if (values.length == 1 && values[0] instanceof Collection<?>) {
+            in.put(key, ((Collection<?>) values[0]).toArray());
+        } else {
+            in.put(key, values);
+        }
+        System.out.println("IN IS " + Arrays.toString(values));
         return this;
     }
 

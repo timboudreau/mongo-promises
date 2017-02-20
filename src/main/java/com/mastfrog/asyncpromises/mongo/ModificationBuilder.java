@@ -96,7 +96,7 @@ public interface ModificationBuilder<T> {
      * @param val The value
      * @return this
      */
-    ModificationBuilder<T> push(String name, Object val);
+    ModificationBuilder<T> push(String name, Object... val);
 
     /**
      * Specify an object to remove from an array with the specified name.
@@ -125,6 +125,7 @@ public interface ModificationBuilder<T> {
      * @return this
      */
     ModificationBuilder<T> setOnInsert(String key, Object value);
+
     /**
      * Add a field to increment by a specific amount.
      *
@@ -142,4 +143,11 @@ public interface ModificationBuilder<T> {
      * @return this
      */
     ModificationBuilder<T> decrement(String name, long amount);
+
+    /**
+     * Determine if this builder contains no modifications.
+     *
+     * @return true if it is empty
+     */
+    boolean isEmpty();
 }

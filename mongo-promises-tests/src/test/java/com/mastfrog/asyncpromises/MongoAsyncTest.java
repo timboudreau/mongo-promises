@@ -249,10 +249,10 @@ public class MongoAsyncTest {
         assertEquals(3, bw[0].getDeletedCount());
         assertEquals(1, bw[0].getModifiedCount());
         assertEquals(0, bw[0].getUpserts().size());
-        
+
         final UpdateResult[] replaceResult = new UpdateResult[1];
         final CountDownLatch replaceLatch = new CountDownLatch(1);
-        p.replaceOne().equal("ix", 73).build().replaceWith(new Document("ix", 202).append("name", "wookie")).then(new Logic<UpdateResult, Void>(){
+        p.replaceOne().equal("ix", 73).build().replaceWith(new Document("ix", 202).append("name", "wookie")).then(new Logic<UpdateResult, Void>() {
 
             @Override
             public void run(UpdateResult data, Trigger<Void> next, PromiseContext context) throws Exception {
@@ -307,24 +307,25 @@ public class MongoAsyncTest {
 
             @Override
             public void onCreateCollection(String name, MongoCollection<?> collection) {
-                assertEquals(name, "stuff", name);
-                List<Document> all = new LinkedList<>();
-                for (int i = 0; i < 200; i++) {
-                    Document d = new Document("ix", i).append("name", "Thing-" + i);
-                    all.add(d);
-                }
-                final CountDownLatch latch = new CountDownLatch(1);
-                collection.withDocumentClass(Document.class).insertMany(all, new SingleResultCallback<Void>() {
-
-                    @Override
-                    public void onResult(Void t, Throwable thrwbl) {
-                        latch.countDown();
+                if ("stuff".equals(name)) {
+                    List<Document> all = new LinkedList<>();
+                    for (int i = 0; i < 200; i++) {
+                        Document d = new Document("ix", i).append("name", "Thing-" + i);
+                        all.add(d);
                     }
-                });
-                try {
-                    latch.await(10, TimeUnit.SECONDS);
-                } catch (InterruptedException ex) {
-                    Exceptions.chuck(ex);
+                    final CountDownLatch latch = new CountDownLatch(1);
+                    collection.withDocumentClass(Document.class).insertMany(all, new SingleResultCallback<Void>() {
+
+                        @Override
+                        public void onResult(Void t, Throwable thrwbl) {
+                            latch.countDown();
+                        }
+                    });
+                    try {
+                        latch.await(10, TimeUnit.SECONDS);
+                    } catch (InterruptedException ex) {
+                        Exceptions.chuck(ex);
+                    }
                 }
             }
         }

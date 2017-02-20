@@ -23,8 +23,13 @@
  */
 package com.mastfrog.asyncpromises.mongo;
 
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.bson.Document;
@@ -46,6 +51,10 @@ final class ModificationBuilderImpl<T> implements ModificationBuilder<T> {
 
     ModificationBuilderImpl(Factory<T> factory) {
         this.factory = factory;
+    }
+
+    public boolean isEmpty() {
+        return set.isEmpty() && inc.isEmpty() && push.isEmpty() && pull.isEmpty() && setOnInsert.isEmpty() && rename.isEmpty() && unset.isEmpty();
     }
 
     Document toDocument() {
@@ -78,6 +87,10 @@ final class ModificationBuilderImpl<T> implements ModificationBuilder<T> {
                 rn.append(e.getKey(), e.getValue());
             }
             result.append("$rename", rn);
+        }
+        System.out.println("MODIFICATION IS: " + result);
+        if (result.isEmpty()) {
+            throw new IllegalStateException("Modification document is empty - update will fail");
         }
         return result;
     }
@@ -158,8 +171,34 @@ final class ModificationBuilderImpl<T> implements ModificationBuilder<T> {
         return this;
     }
 
-    public ModificationBuilder<T> push(String name, Object val) {
-        push.put(name, val);
+    public ModificationBuilder<T> push(String name, Object... val) {
+        Object value = val;
+        if (val != null && val.length > 0) {
+            if (val.length == 1 && val[0] != null && val[0].getClass().isArray()) {
+                int size = Array.getLength(val[0]);
+                List<Object> l = new ArrayList<>(size);
+                for (int i = 0; i < size; i++) {
+                    l.add(Array.get(val[0], i));
+                }
+                value = new Document("$each", l);
+            } else if (val.length == 1 && val[0] instanceof Collection<?>) {
+                value = new Document("$each", val[0]);
+            } else if (val.length == 1) {
+                value = val[0];
+            } else {
+                value = new Document("$each", Arrays.asList(val));
+            }
+        }
+        if (value != null && value.getClass().isArray()) {
+            int size = Array.getLength(value);
+            List<Object> l = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                l.add(Array.get(value, i));
+            }
+            value = new Document("$each", l);
+        }
+        System.out.println("PUSH " + value);
+        push.put(name, value);
         return this;
     }
 
