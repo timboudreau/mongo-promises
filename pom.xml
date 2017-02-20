@@ -1,14 +1,13 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.mastfrog</groupId>
         <artifactId>mastfrog-parent</artifactId>
-        <version>1.6.3</version>
+        <version>1.6.5</version>
         <relativePath/>
     </parent>
     <artifactId>mongo-promises</artifactId>
-    <packaging>jar</packaging>
     <dependencies>
         <dependency>
             <groupId>org.mongodb</groupId>
@@ -17,7 +16,6 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>async-promises</artifactId>
-            <version>${project.version}</version>
         </dependency>
     </dependencies>
     <repositories>
@@ -35,4 +33,23 @@
             </snapshots>
         </repository>
     </repositories>
+    <url>https://github.com/timboudreau/mongo-promises</url>
+    <scm>
+        <url>https://github.com/timboudreau/mongo-promises</url>
+        <connection>scm:git:https://github.com/timboudreau/mongo-promises.git</connection>
+        <developerConnection>git@github.com/timboudreau/mongo-promises.git</developerConnection>
+    </scm>
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>http://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>Tim Boudreau</name>
+            <email>tim@timboudreau.com</email>
+            <url>https://timboudreau.com</url>
+        </developer>
+    </developers>
 </project>
