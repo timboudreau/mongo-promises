@@ -122,7 +122,6 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
 
                         @Override
                         public AsyncPromise<Void, UpdateResult> updateOne(UpdateBuilderImpl<?> builder) {
-                            System.out.println("BUilder update one " + query + " mod " + modification);
                             return AsyncPromise.create(new SimpleLogic<Void, Bson>() {
 
                                 @Override
@@ -273,7 +272,6 @@ class QueryBuilderImpl<T, R> implements QueryBuilder<T, R> {
         } else {
             in.put(key, values);
         }
-        System.out.println("IN IS " + Arrays.toString(values));
         return this;
     }
 

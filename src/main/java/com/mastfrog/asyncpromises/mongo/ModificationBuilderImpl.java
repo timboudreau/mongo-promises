@@ -88,7 +88,6 @@ final class ModificationBuilderImpl<T> implements ModificationBuilder<T> {
             }
             result.append("$rename", rn);
         }
-        System.out.println("MODIFICATION IS: " + result);
         if (result.isEmpty()) {
             throw new IllegalStateException("Modification document is empty - update will fail");
         }
@@ -197,7 +196,6 @@ final class ModificationBuilderImpl<T> implements ModificationBuilder<T> {
             }
             value = new Document("$each", l);
         }
-        System.out.println("PUSH " + value);
         push.put(name, value);
         return this;
     }

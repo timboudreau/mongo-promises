@@ -218,11 +218,9 @@ public class CollectionPromises<T> {
      * @return A promise
      */
     public AsyncPromise<Bson, UpdateResult> updateOne(final Bson modification) {
-        System.out.println("Do update one " + modification);
         AsyncPromise<Bson, UpdateResult> m = AsyncPromise.create(new Logic<Bson, UpdateResult>() {
             @Override
             public void run(Bson data, final Trigger<UpdateResult> next, PromiseContext context) throws Exception {
-                System.out.println("Perform update query " + data);
                 try {
                     collection.updateOne(data, modification, new SRC<>(next));
                 } catch (Exception e) {
