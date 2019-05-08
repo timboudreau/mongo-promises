@@ -18,6 +18,11 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>async-promises</artifactId>
         </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
